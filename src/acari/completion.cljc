@@ -31,7 +31,10 @@
               (and (str/starts-with? candidate prefix)
                    (not= candidate prefix))))))
 
-(defmulti get-ctx {:arglists '([shell])} identity)
+(defmulti get-ctx* {:arglists '([shell])} identity)
+
+(defn get-ctx [shell]
+  (assoc (get-ctx* shell) :acari/shell shell))
 
 (defmulti emit-completions
   {:arglists '([ctx completions])}
@@ -95,7 +98,6 @@
 }
 complete -o nospace -F " fn-name " " command-name)))
 
-(defmethod get-ctx "bash" [_]
-  (-> (args-and-word (platform/getenv "COMP_LINE")
-                     (parse-long (platform/getenv "COMP_POINT")))
-      (assoc :acari/shell "bash")))
+(defmethod get-ctx* "bash" [_]
+  (args-and-word (platform/getenv "COMP_LINE")
+                 (parse-long (platform/getenv "COMP_POINT"))))
