@@ -2,39 +2,46 @@
 (ns github-org
   (:require [acari.completion :as acari]
             [babashka.http-client :as http]
-            [cheshire.core :as json]))
+            [cheshire.core :as json]
+            [clojure.string :as str]))
 
-(defn fetch-members [org]
-  (-> (http/get (str "https://api.github.com/orgs/" org "/members"))
+(defn gh-get [& path]
+  (-> (http/get (str/join "/" (cons "https://api.github.com" path)))
       :body
       (json/parse-string true)))
 
-(defn fetch-member-names [org]
-  (->> (fetch-members org) (map :login)))
+(defn fetch-members [org]
+  (let [members (gh-get "orgs" org "members")]
+    (map :login members)))
 
-(comment
-  (fetch-member-names "clj-br")
+(def clj-orgs ["clj-commons" "clj-br" "scicloj"])
 
-  (fetch-member-names "scicloj")
-  )
+(def commands
+  {"member-orgs"
+   (fn [_org member]
+     (let [orgs (gh-get "users" member "orgs")]
+       (->> orgs (map :login) (run! println))))
 
-(defn main [[command org member]]
-  (case command
-    "print-member" (println (str org "/" member))
+   "completions-script"
+   (fn []
+     (acari/print-script {:shell :bash
+                          :command-name "github_org.clj"
+                          :completions-command "github_org.clj print-completions"}))
 
-    "completions-script"
-    (acari/print-script {:shell :bash
-                         :command-name "github_org.clj"
-                         :completions-command "github_org.clj print-completions"})
+   "print-completions"
+   (fn []
+     (acari/print-completions :bash
+                              (fn [{[cmd org :as args] :acari/args :as ctx}]
+                                (acari/log ctx)
+                                (if (empty? args)
+                                  (keys commands)
+                                  (case cmd
+                                    "member-orgs" (if org
+                                                    (fetch-members org)
+                                                    clj-orgs))))))})
 
-    "print-completions"
-    (acari/print-completions :bash
-                             (fn [{[_ org :as  acari-args] :acari/args :as ctx}]
-                               (acari/log ctx)
-                               (case (count acari-args)
-                                 0 ["print-member" "completions-script"]
-                                 1 ["clj-br" "scicloj"]
-                                 2 (fetch-member-names org))))))
+(defn main [[cmd & args]]
+  (apply (commands cmd) args))
 
 (when (= *file* (System/getProperty "babashka.file"))
   (main *command-line-args*))
