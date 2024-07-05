@@ -24,24 +24,24 @@
 
    ;; Subcommand to print the completion shell script
    "completions-script"
-   (fn []
+   (fn [shell]
      (acari/print-script
-      {:shell "bash"
+      {:shell shell
        ;; The name of the command to be completed
        :command-name "github_org.clj"
        ;; The command the shell script will invoke to get completions
-       :completions-command "github_org.clj print-completions"}))
+       :completions-command (str "github_org.clj print-completions " shell)}))
 
    ;; The shell script will invoke this command to get completions
    "print-completions"
-   (fn []
+   (fn [shell]
      (acari/print-completions
-      "bash"
+      shell
       ;; This function receives a ctx and returns a seqable of strings
       (fn [{[cmd org _member :as args] :acari/args
             _word :acari/word
             :as ctx}]
-        ;; Anything that's printed is appended to COMP_DEBUG_FILE
+        ;; Anything that's printed is appended to COMP_DEBUG_FILE (if set)
         (prn ctx)
         (if (empty? args)
           (keys commands)
@@ -49,6 +49,8 @@
             "member-orgs" (if org
                             (fetch-members org)
                             clj-orgs)
+            "completions-script" (when (= 1 (count args))
+                                   ["bash"])
             ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
             (throw (ex-info "Not found" {})))))))})
 
