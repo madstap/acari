@@ -1,1 +1,2 @@
-{:deps {acari/acari {:local/root "../../"}}}
+{:deps {acari/acari {:local/root "../../"}}
+ :paths ["."]}
