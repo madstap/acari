@@ -3,10 +3,6 @@
             [babashka.process :as proc]
             [clojure.string :as str]))
 
-(defn log [msg]
-  (when-some [log-file (platform/getenv "COMP_DEBUG_FILE")]
-    (platform/append-file-line log-file (pr-str msg))))
-
 (defmulti script {:arglists '([{:keys [shell] :as opts}])} :shell)
 
 (defn print-script [{:keys [shell] :as opts}]
@@ -54,11 +50,15 @@
   (let [ctx (get-ctx shell)]
     (emit-completions ctx (f ctx))))
 
-(defn print-completions [shell f]
-  ;; Supress *out*?
-  ;; Catch exceptions?
-  (run! println (print-completions* shell f)))
+(defn log-file []
+  (platform/getenv "COMP_DEBUG_FILE"))
 
+(defn print-completions [shell f]
+  (run! println (print-completions*
+                 shell
+                 (-> f
+                     (platform/wrap-print-errors)
+                     (platform/wrap-redirect-out (log-file))))))
 
 ;; Bash
 
@@ -72,7 +72,7 @@
 (defn bash-fn-name [command-name]
   (str "_" (sanitize-bash-fn-name command-name) "_completions"))
 
-(defmethod script :bash
+(defmethod script "bash"
   [{:keys [command-name completions-command]}]
   (let [fn-name (bash-fn-name command-name)]
     (str "function " fn-name "()
@@ -95,7 +95,7 @@
 }
 complete -o nospace -F " fn-name " " command-name)))
 
-(defmethod get-ctx :bash [_]
+(defmethod get-ctx "bash" [_]
   (-> (args-and-word (platform/getenv "COMP_LINE")
                      (parse-long (platform/getenv "COMP_POINT")))
-      (assoc :acari/shell :bash)))
+      (assoc :acari/shell "bash")))

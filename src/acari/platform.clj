@@ -1,7 +1,20 @@
-(ns acari.platform)
+(ns acari.platform
+  (:require [clojure.java.io :as io])
+  (:import (java.io Writer)))
 
 (defn getenv [env-var]
   (System/getenv env-var))
 
-(defn append-file-line [file s]
-  (spit file (str s "\n") :append true))
+(defn wrap-redirect-out [f out]
+  (fn [ctx]
+    (let [writer (if (string? out)
+                   (io/writer out :append true)
+                   (Writer/nullWriter))]
+      (binding [*out* writer, *err* writer]
+        (f ctx)))))
+
+(defn wrap-print-errors [f]
+  (fn [ctx]
+    (try (f ctx)
+         (catch Throwable e
+           (println e)))))

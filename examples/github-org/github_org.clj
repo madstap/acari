@@ -22,26 +22,36 @@
      (let [orgs (gh-get "users" member "orgs")]
        (->> orgs (map :login) (run! println))))
 
+   ;; Subcommand to print the completion shell script
    "completions-script"
    (fn []
-     (acari/print-script {:shell :bash
-                          :command-name "github_org.clj"
-                          :completions-command "github_org.clj print-completions"}))
+     (acari/print-script
+      {:shell "bash"
+       ;; The name of the command to be completed
+       :command-name "github_org.clj"
+       ;; The command the shell script will invoke to get completions
+       :completions-command "github_org.clj print-completions"}))
 
+   ;; The shell script will invoke this command to get completions
    "print-completions"
    (fn []
-     (acari/print-completions :bash
-                              (fn [{[cmd org :as args] :acari/args :as ctx}]
-                                (acari/log ctx)
-                                (if (empty? args)
-                                  (keys commands)
-                                  (case cmd
-                                    "member-orgs" (if org
-                                                    (fetch-members org)
-                                                    clj-orgs))))))})
-
-(defn main [[cmd & args]]
-  (apply (commands cmd) args))
+     (acari/print-completions
+      "bash"
+      ;; This function receives a ctx and returns a seqable of strings
+      (fn [{[cmd org _member :as args] :acari/args
+            _word :acari/word
+            :as ctx}]
+        ;; Anything that's printed is appended to COMP_DEBUG_FILE
+        (prn ctx)
+        (if (empty? args)
+          (keys commands)
+          (case cmd
+            "member-orgs" (if org
+                            (fetch-members org)
+                            clj-orgs)
+            ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
+            (throw (ex-info "Not found" {})))))))})
 
 (when (= *file* (System/getProperty "babashka.file"))
-  (main *command-line-args*))
+  (let [[cmd & args] *command-line-args*]
+    (apply (commands cmd) args)))
