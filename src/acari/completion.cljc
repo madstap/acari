@@ -5,6 +5,9 @@
 
 (defmulti script {:arglists '([{:keys [shell] :as opts}])} :shell)
 
+(defn supported-shells []
+  (keys (methods script)))
+
 (defn print-script [{:keys [shell] :as opts}]
   (println (script opts)))
 
