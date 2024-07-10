@@ -1,5 +1,6 @@
 (ns acari.platform
-  (:require [clojure.java.io :as io])
+  (:require [babashka.process :as proc]
+            [clojure.java.io :as io])
   (:import (java.io Writer)))
 
 (defn getenv [env-var]
@@ -18,3 +19,6 @@
     (try (f ctx)
          (catch Throwable e
            (println e)))))
+
+(defn tokenize [s]
+  (proc/tokenize s))

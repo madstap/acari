@@ -1,6 +1,5 @@
 (ns acari.completion
   (:require [acari.platform :as platform]
-            [babashka.process :as proc]
             [clojure.string :as str]))
 
 (defmulti script {:arglists '([{:keys [shell] :as opts}])} :shell)
@@ -18,7 +17,7 @@
   [line point]
   (let [l (subs line 0 point)
         ;; The first word is the executable.
-        words (rest (proc/tokenize l))]
+        words (rest (platform/tokenize l))]
     (if (or (re-find #"\s$" l) (= "" l))
       {:acari/args (vec words), :acari/word ""}
       {:acari/args (vec (butlast words)), :acari/word (or (last words) "")})))
