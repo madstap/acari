@@ -19,8 +19,7 @@
 (def commands
   {"member-orgs"
    (fn [_org member]
-     (let [orgs (gh-get "users" member "orgs")]
-       (->> orgs (map :login) (run! println))))
+     (->> (gh-get "users" member "orgs") (map :login) (run! println)))
 
    ;; Subcommand to print the completion shell script
    "completions-script"
@@ -43,16 +42,15 @@
             :as ctx}]
         ;; Anything that's printed is appended to COMP_DEBUG_FILE (if set)
         (prn ctx)
-        (if (empty? args)
-          (keys commands)
-          (case cmd
-            "member-orgs" (if org
-                            (fetch-members org)
-                            clj-orgs)
-            "completions-script" (when (= 1 (count args))
-                                   ["bash"])
-            ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
-            (throw (ex-info "Not found" {})))))))})
+        (case cmd
+          nil (keys commands)
+          "member-orgs" (if org
+                          (fetch-members org)
+                          clj-orgs)
+          "completions-script" (when (= 1 (count args))
+                                 (acari/supported-shells))
+          ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
+          (throw (ex-info "Not found" {}))))))})
 
 (when (= *file* (System/getProperty "babashka.file"))
   (let [[cmd & args] *command-line-args*]
