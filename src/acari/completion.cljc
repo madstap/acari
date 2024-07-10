@@ -17,8 +17,8 @@
         ;; The first word is the executable.
         words (rest (proc/tokenize l))]
     (if (or (re-find #"\s$" l) (= "" l))
-      {:acari/args words, :acari/word ""}
-      {:acari/args (or (butlast words) ()), :acari/word (or (last words) "")})))
+      {:acari/args (vec words), :acari/word ""}
+      {:acari/args (vec (butlast words)), :acari/word (or (last words) "")})))
 
 (defn normalize-completions [completions]
   (-> (if (map? completions) completions {:completions completions})
