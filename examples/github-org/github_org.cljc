@@ -1,4 +1,5 @@
 #!/usr/bin/env bb
+
 (ns github-org
   (:require [acari.completion :as acari]
             [babashka.http-client :as http]
@@ -27,9 +28,9 @@
      (acari/print-script
       {:shell shell
        ;; The name of the command to be completed
-       :command-name "github_org.clj"
+       :command-name "github_org.cljc"
        ;; The command the shell script will invoke to get completions
-       :completions-command (str "github_org.clj print-completions " shell)}))
+       :completions-command (str "github_org.cljc print-completions " shell)}))
 
    ;; The shell script will invoke this command to get completions
    "print-completions"
@@ -52,6 +53,7 @@
           ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
           (throw (ex-info "Not found" {}))))))})
 
-(when (= *file* (System/getProperty "babashka.file"))
+(when #?(:bb (= *file* (System/getProperty "babashka.file"))
+         :org.babashka/nbb (= nbb.core/*file* (nbb.core/invoked-file)))
   (let [[cmd & args] *command-line-args*]
     (apply (commands cmd) args)))

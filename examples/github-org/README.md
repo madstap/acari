@@ -6,10 +6,10 @@ From this directory, run the following commands
 
 ```shell
 # Assuming that ~/.local/bin is on the PATH
-ln -s "$(pwd)/github_org.clj" ~/.local/bin/
+ln -s "$(pwd)/github_org.cljc" ~/.local/bin/
 
 # Install the completions for the current session
-source <(github_org.clj completions-script bash)
+source <(github_org.cljc completions-script bash)
 
 # Set the debug file
 export COMP_DEBUG_FILE=dbg.txt
