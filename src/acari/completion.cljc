@@ -1,6 +1,76 @@
 (ns acari.completion
-  (:require [acari.platform :as platform]
-            [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            #?@(:clj [[babashka.process :as proc]
+                      [clojure.java.io :as io]]
+                :cljs [["node:fs" :as node-fs]]))
+  #?(:clj (:import (java.io Writer))))
+
+#?(:cljs
+   (defn oget [obj k]
+     (some #(when (= k (first %)) (second %))
+           (.entries js/Object obj))))
+
+(defn getenv [env-var]
+  #?(:clj (System/getenv env-var)
+     :cljs (oget (.-env js/process) env-var)))
+
+;; TODO: Additionally do this? (And the equivalent java.)
+;; process.on('uncaughtException', function(err) {
+;;   console.error((err && err.stack) ? err.stack : err);
+;; });
+(defn wrap-print-errors [f]
+  (fn [ctx]
+    (try (f ctx)
+         (catch #?(:clj Throwable :cljs :default) e
+           (println e)))))
+
+#?(:cljs
+   (defn wrap-handler [f out]
+     (fn [ctx]
+       (let [writer (some-> out (node-fs/createWriteStream #js {:flags "a+"}))
+             write! (or (some-> writer .-write (.bind writer))
+                        (fn [_]))
+             old-out-write (.-write js/process.stdout)
+             old-err-write (.-write js/process.stderr)]
+         ;; https://stackoverflow.com/a/35542360/3680995
+         (set! (.-write js/process.stdout) write!)
+         (set! (.-write js/process.stderr) write!)
+         (-> (.resolve js/Promise
+                       (binding [*print-newline* true
+                                 *print-fn* #(some-> writer (.write %))]
+                         ((wrap-print-errors f) ctx)))
+             (.catch (fn [err]
+                       (write! (str err "\n"))
+                       nil))
+             (.then (fn [ret]
+                      (set! (.-write js/process.stdout) old-out-write)
+                      (set! (.-write js/process.stderr) old-err-write)
+                      (some-> writer .close)
+                      ret)))))))
+
+#?(:clj
+   (defn wrap-redirect-out [f out]
+     (fn [ctx]
+       (let [writer (if (string? out)
+                      (io/writer out :append true)
+                      (Writer/nullWriter))]
+         (binding [*out* writer, *err* writer]
+           (f ctx))))))
+
+#?(:clj
+   (defn wrap-handler [f out]
+     (-> f
+         (wrap-print-errors)
+         (wrap-redirect-out out))))
+
+#?(:cljs
+   (defn sleep [ms]
+     (js/Promise. #(js/setTimeout % ms))))
+
+(defn tokenize [s]
+  #?(:clj (proc/tokenize s)
+     ;; TODO: This isn't good enough, we should probably do this on the shell side.
+     :cljs (str/split s #"\s+")))
 
 (defmulti script {:arglists '([{:keys [shell] :as opts}])} :shell)
 
@@ -17,10 +87,11 @@
   [line point]
   (let [l (subs line 0 point)
         ;; The first word is the executable.
-        words (rest (platform/tokenize l))]
-    (if (or (re-find #"\s$" l) (= "" l))
-      {:acari/args (vec words), :acari/word ""}
-      {:acari/args (vec (butlast words)), :acari/word (or (last words) "")})))
+        words (rest (tokenize l))
+        [args word] (if (or (re-find #"\s$" l) (= "" l))
+                      [(vec words) ""]
+                      [(vec (butlast words)) (or (last words) "")])]
+    {:acari/line line, :acari/point point, :acari/args args, :acari/word word}))
 
 (defn normalize-completions [completions]
   (-> (if (map? completions) completions {:completions completions})
@@ -38,12 +109,7 @@
 (defn get-ctx [shell]
   (assoc (get-ctx* shell) :acari/shell shell))
 
-(defmulti emit-completions
-  {:arglists '([ctx completions])}
-  (fn [{:acari/keys [shell]} _] shell))
-
-;; Maybe this doesn't need to be specific to any shell
-(defmethod emit-completions :default [ctx completions]
+(defn emit-completions [ctx completions]
   (let [{comps :completions} (normalize-completions completions)
         on-complete (or (and (= 1 (count comps))
                              (:on-complete (first comps)))
@@ -51,19 +117,17 @@
         filtered (filter-prefix (:acari/word ctx) comps)]
     (cons (name on-complete) (map :candidate filtered))))
 
-(defn print-completions* [shell f]
-  (let [ctx (get-ctx shell)]
-    (emit-completions ctx (f ctx))))
-
 (defn log-file []
-  (platform/getenv "COMP_DEBUG_FILE"))
+  (getenv "COMP_DEBUG_FILE"))
 
 (defn print-completions [shell f]
-  (run! println (print-completions*
-                 shell
-                 (-> f
-                     (platform/wrap-print-errors)
-                     (platform/wrap-redirect-out (log-file))))))
+  (let [handler (wrap-handler f (log-file))
+        ctx (get-ctx shell)]
+    #?(:default (run! println (emit-completions ctx (handler ctx)))
+       :cljs (-> (handler ctx)
+                 (.then
+                  (fn [completions]
+                    (run! js/console.log (emit-completions ctx completions))))))))
 
 ;; Bash
 
@@ -101,5 +165,4 @@
 complete -o nospace -F " fn-name " " command-name)))
 
 (defmethod get-ctx* "bash" [_]
-  (args-and-word (platform/getenv "COMP_LINE")
-                 (parse-long (platform/getenv "COMP_POINT"))))
+  (args-and-word (getenv "COMP_LINE") (parse-long (getenv "COMP_POINT"))))
