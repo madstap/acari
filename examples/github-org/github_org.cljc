@@ -54,6 +54,7 @@
           (throw (ex-info "Not found" {}))))))})
 
 (when #?(:bb (= *file* (System/getProperty "babashka.file"))
-         :org.babashka/nbb (= nbb.core/*file* (nbb.core/invoked-file)))
+         :org.babashka/nbb (= *file* (nbb.core/invoked-file))
+         :default false)
   (let [[cmd & args] *command-line-args*]
     (apply (commands cmd) args)))
