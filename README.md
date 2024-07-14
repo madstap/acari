@@ -34,3 +34,7 @@ Pre-alpha, everything is subject to change.
 * https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/register-argumentcompleter?view=powershell-7.4
 
 * https://pypi.org/project/argcomplete/0.6.5/
+
+* https://www.nushell.sh/cookbook/external_completers.html#fish-completer
+
+* https://github.com/carapace-sh/carapace-bin
