@@ -1,8 +1,10 @@
 (ns acari.completion
   (:require [clojure.string :as str]
             #?@(:clj [[babashka.process :as proc]
+                      [babashka.fs :as fs]
                       [clojure.java.io :as io]]
-                :cljs [["node:fs" :as node-fs]]))
+                :cljs [["node:fs" :as node-fs]
+                       ["node:path" :as node-path]]))
   #?(:clj (:import (java.io Writer))))
 
 #?(:cljs
@@ -128,6 +130,63 @@
                  (.then
                   (fn [completions]
                     (run! js/console.log (emit-completions ctx completions))))))))
+
+(def file-sep
+  #?(:clj fs/file-separator
+     :cljs node-path/sep))
+
+(defn append-file-sep [dir]
+  (cond-> dir (not (str/ends-with? dir file-sep)) (str file-sep)))
+
+(defn split-file-sep [file]
+  (str/split file (re-pattern file-sep)))
+
+(defn ls [dir]
+  #?(:clj (map #(str/replace (str %) #"^\./" "") ; TODO: Windows
+               (fs/list-dir dir))
+     :cljs (map #(str (when (not= dir ".") (append-file-sep dir)) %)
+                (node-fs/readdirSync dir))))
+
+(defn extension [file]
+  #?(:clj (fs/extension file)
+     :cljs (when-some [ext (not-empty (node-path/extname file))]
+             (subs ext 1 (count ext)))))
+
+(defn directory? [file]
+  #?(:clj (fs/directory? file)
+     :cljs (and (node-fs/existsSync file)
+                (-> (node-fs/lstatSync file) .isDirectory))))
+
+(defn source-dir [dir word]
+  (let [non-blank-dir? (and (not (str/blank? dir)) (not= "." dir))
+        file-sep-in-word? (str/includes? word file-sep)]
+    (str (when non-blank-dir? dir)
+         (when (and non-blank-dir? file-sep-in-word?) file-sep)
+         (when file-sep-in-word?
+           (str (cond->> (split-file-sep word)
+                  (not (str/ends-with? word file-sep)) butlast
+                  true (str/join file-sep))
+                file-sep)))))
+
+(defn file [{:acari/keys [word] :as _ctx} & {:keys [ext dir] :or {dir "."}}]
+  (let [curr-dir (source-dir dir word)
+        ext* (if (string? ext) #{ext} (set ext))]
+    (->> (cond->> (ls curr-dir)
+           ext (filter (some-fn directory? #(contains? ext* (extension %)))))
+         (map #(let [dir? (directory? %)]
+                 {:candidate (str % (when dir? "/"))
+                  :on-complete (if dir? :continue :next)})))))
+
+(defn dir [ctx & {:as opts}]
+  (->> (file ctx opts) (filter #(directory? (:candidate %)))))
+
+(comment
+
+  (file {:acari/word "examples/"} {})
+  (file {:acari/word "./examples/"} {})
+  (file {:acari/word "./examples/github-org/"})
+
+  )
 
 ;; Bash
 
