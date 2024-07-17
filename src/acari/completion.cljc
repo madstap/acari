@@ -211,11 +211,12 @@
     RESPONSE=($(" completions-command "))
 
     # The first line is a comma separated list of directives.
-    # Currently only on-complete, which can be [next | continue].
-
     # We replace any commas with spaces, the now space separated list is then
     # read as an array.
     DIRECTIVES=(${RESPONSE[0]//,/ })
+
+    # Directive: on-complete
+    # Possible values: next | continue
     if [ ${DIRECTIVES[0]} = 'next' ]; then
         compopt +o nospace
     fi
