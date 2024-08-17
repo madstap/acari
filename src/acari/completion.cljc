@@ -207,6 +207,11 @@
 
   )
 
+(defn s->ctx [s]
+  (let [comp-line (str/replace s "|" "")
+        comp-point (or (str/index-of s \|) (count comp-line))]
+    (args-and-word comp-line comp-point)))
+
 ;; Bash
 
 (defn sanitize-bash-fn-name [s]
