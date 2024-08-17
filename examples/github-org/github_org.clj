@@ -41,7 +41,7 @@
    "print-completions"
    (fn [shell]
      (acari/print-completions
-      shell
+      {:shell shell}
       ;; This function receives a ctx and returns a seqable of strings
       (fn [{[cmd org _member :as args] :acari/args
             _word :acari/word

@@ -132,9 +132,9 @@
 (defn log-file []
   (getenv "COMP_DEBUG_FILE"))
 
-(defn print-completions [shell f]
+(defn print-completions [{:keys [shell] :as ctx} f]
   (let [handler (wrap-handler f (log-file))
-        ctx (get-ctx shell)]
+        ctx (merge (get-ctx shell) ctx)]
     #?(:default (run! println (emit-completions ctx (handler ctx)))
        :cljs (-> (handler ctx)
                  (.then
