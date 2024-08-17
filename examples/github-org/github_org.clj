@@ -6,8 +6,11 @@
             [cheshire.core :as json]
             [clojure.string :as str]))
 
+(defn gh-url [path]
+  (str/join "/" (cons "https://api.github.com" path)))
+
 (defn gh-get [& path]
-  (-> (http/get (str/join "/" (cons "https://api.github.com" path)))
+  (-> (http/get (gh-url path))
       :body
       (json/parse-string true)))
 
@@ -21,6 +24,8 @@
   {"member-orgs"
    (fn [_org member]
      (->> (gh-get "users" member "orgs") (map :login) (run! println)))
+
+   "a-file" prn
 
    ;; Subcommand to print the completion shell script
    "completions-script"
@@ -50,11 +55,10 @@
                           clj-orgs)
           "completions-script" (when (= 1 (count args))
                                  (acari/supported-shells))
+          "a-file" (acari/file ctx)
           ;; Uncaught exceptions are printed (ie. appended to COMP_DEBUG_FILE)
           (throw (ex-info "Not found" {}))))))})
 
-(when #?(:bb (= *file* (System/getProperty "babashka.file"))
-         :org.babashka/nbb (= *file* (nbb.core/invoked-file))
-         :default false)
+(when (= *file* (System/getProperty "babashka.file"))
   (let [[cmd & args] *command-line-args*]
     (apply (commands cmd) args)))
