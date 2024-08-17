@@ -145,11 +145,20 @@
   #?(:clj fs/file-separator
      :cljs node-path/sep))
 
+(defn windows? []
+  #?(:clj (fs/windows?)
+     :cljs (= "\\" file-sep)))
+
+(def file-sep-re
+  (if (windows?)
+    #"\\"
+    (re-pattern file-sep)))
+
 (defn append-file-sep [dir]
   (cond-> dir (not (str/ends-with? dir file-sep)) (str file-sep)))
 
 (defn split-file-sep [file]
-  (str/split file (re-pattern file-sep)))
+  (str/split file file-sep-re))
 
 (defn ls [dir]
   #?(:clj (map #(str/replace (str %) #"^\./" "") ; TODO: Windows
