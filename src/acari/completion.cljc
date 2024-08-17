@@ -40,6 +40,8 @@
          (-> (.resolve js/Promise
                        (binding [*print-newline* true
                                  *print-fn* #(some-> writer (.write %))]
+                         ;; FIXME: binding *print-fn* only works until we enter
+                         ;;        into async land.
                          ((wrap-print-errors f) ctx)))
              (.catch (fn [err]
                        (write! (str err "\n"))
