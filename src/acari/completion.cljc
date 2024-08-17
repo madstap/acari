@@ -90,12 +90,20 @@
   completed, respectively."
   [line point]
   (let [l (subs line 0 point)
-        ;; The first word is the executable.
-        words (rest (tokenize l))
+        [exe & words] (tokenize l)
         [args word] (if (or (re-find #"\s$" l) (= "" l))
                       [(vec words) ""]
                       [(vec (butlast words)) (or (last words) "")])]
-    {:acari/line line, :acari/point point, :acari/args args, :acari/word word}))
+    #:acari{:line line
+            :point point
+            :args args
+            :word word
+            :exe exe}))
+
+(comment
+  (args-and-word "foo bar baz" (count "foo bar baz"))
+
+  )
 
 (defn normalize-completions [completions]
   (-> (if (map? completions) completions {:completions completions})
