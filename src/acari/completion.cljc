@@ -107,14 +107,14 @@
 
 (defn normalize-completions [completions]
   (-> (if (map? completions) completions {:completions completions})
-      (update :completions (partial map #(if (string? %) {:candidate %} %)))))
+      (update :completions (partial map #(if (string? %) {:value %} %)))))
 
 (defn filter-prefix [prefix completions]
   (cond->> completions
     (not (str/blank? prefix))
-    (filter (fn [{:keys [candidate]}]
-              (and (str/starts-with? candidate prefix)
-                   (not= candidate prefix))))))
+    (filter (fn [{:keys [value]}]
+              (and (str/starts-with? value prefix)
+                   (not= value prefix))))))
 
 (defmulti get-ctx* {:arglists '([shell])} identity)
 
@@ -127,7 +127,7 @@
                              (:on-complete (first comps)))
                         :next)
         filtered (filter-prefix (:acari/word ctx) comps)]
-    (cons (name on-complete) (map :candidate filtered))))
+    (cons (name on-complete) (map :value filtered))))
 
 (defn log-file []
   (getenv "COMP_DEBUG_FILE"))
@@ -184,11 +184,11 @@
     (->> (cond->> (ls curr-dir)
            ext (filter (some-fn directory? #(contains? ext* (extension %)))))
          (map #(let [dir? (directory? %)]
-                 {:candidate (str % (when dir? "/"))
+                 {:value (str % (when dir? "/"))
                   :on-complete (if dir? :continue :next)})))))
 
 (defn dir [ctx & {:as opts}]
-  (->> (file ctx opts) (filter #(directory? (:candidate %)))))
+  (->> (file ctx opts) (filter #(directory? (:value %)))))
 
 (comment
 
