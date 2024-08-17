@@ -210,10 +210,8 @@
 (defn bash-fn-name [command-name]
   (str "_" (sanitize-bash-fn-name command-name) "_completions"))
 
-(defmethod script "bash"
-  [{:keys [command-name completions-command]}]
-  (let [fn-name (bash-fn-name command-name)]
-    (str "function " fn-name "()
+(defn bash-fn [fn-name completions-command]
+  (str "function " fn-name "()
 {
     export COMP_LINE=${COMP_LINE}
     export COMP_POINT=$COMP_POINT
@@ -221,8 +219,7 @@
     RESPONSE=($(" completions-command "))
 
     # The first line is a comma separated list of directives.
-    # We replace any commas with spaces, the now space separated list is then
-    # read as an array.
+    # We replace any commas with spaces and read it as an array.
     DIRECTIVES=(${RESPONSE[0]//,/ })
 
     # Directive: on-complete
@@ -235,8 +232,14 @@
     unset RESPONSE[0]
 
     COMPREPLY=(${RESPONSE[@]})
-}
-complete -o nospace -F " fn-name " " command-name)))
+}"))
+
+(defmethod script "bash"
+  [{:keys [command-name completions-command]}]
+  (let [fn-name (bash-fn-name command-name)]
+    (str (bash-fn fn-name completions-command)
+         \newline
+         "complete -o nospace -F " fn-name " " command-name)))
 
 (defmethod get-ctx* "bash" [_]
   (args-and-word (getenv "COMP_LINE") (parse-long (getenv "COMP_POINT"))))
