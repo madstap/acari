@@ -12,9 +12,13 @@
      (some #(when (= k (first %)) (second %))
            (.entries js/Object obj))))
 
-(defn getenv [env-var]
-  #?(:clj (System/getenv env-var)
-     :cljs (oget (.-env js/process) env-var)))
+(defn getenv
+  ([env-var]
+   (getenv env-var nil))
+  ([env-var default]
+   (or #?(:clj (System/getenv env-var)
+          :cljs (oget (.-env js/process) env-var))
+       default)))
 
 ;; TODO: Additionally do this? (And the equivalent java.)
 ;; process.on('uncaughtException', function(err) {
@@ -84,27 +88,6 @@
 (defn print-script [{:keys [shell] :as opts}]
   (println (script opts)))
 
-(defn args-and-word
-  "Given the line and cursor index, returns a map of :acari/args and
-  :acari/word, the args up to the cursor and the current word to be
-  completed, respectively."
-  [line point]
-  (let [l (subs line 0 point)
-        [exe & words] (tokenize l)
-        [args word] (if (or (re-find #"\s$" l) (= "" l))
-                      [(vec words) ""]
-                      [(vec (butlast words)) (or (last words) "")])]
-    #:acari{:line line
-            :point point
-            :args args
-            :word word
-            :exe exe}))
-
-(comment
-  (args-and-word "foo bar baz" (count "foo bar baz"))
-
-  )
-
 (defn normalize-completions [completions]
   (-> (if (map? completions) completions {:completions completions})
       (update :completions (partial map #(if (string? %) {:value %} %)))))
@@ -115,11 +98,6 @@
     (filter (fn [{:keys [value]}]
               (and (str/starts-with? value prefix)
                    (not= value prefix))))))
-
-(defmulti get-ctx* {:arglists '([shell])} identity)
-
-(defn get-ctx [shell]
-  (assoc (get-ctx* shell) :acari/shell shell))
 
 (defn emit-completions [ctx completions]
   (let [{comps :completions} (normalize-completions completions)
@@ -132,14 +110,47 @@
 (defn log-file []
   (getenv "COMP_DEBUG_FILE"))
 
-(defn print-completions [{:keys [shell] :as ctx} f]
-  (let [handler (wrap-handler f (log-file))
-        ctx (merge (get-ctx shell) ctx)]
-    #?(:default (run! println (emit-completions ctx (handler ctx)))
-       :cljs (-> (handler ctx)
-                 (.then
-                  (fn [completions]
-                    (run! js/console.log (emit-completions ctx completions))))))))
+(defn add-args-and-word
+  "Given the line and cursor index, returns a map of :acari/args and
+  :acari/word, the args up to the cursor and the current word to be
+  completed, respectively."
+  [{:acari/keys [line point] :as ctx}]
+  (let [l (subs line 0 point)
+        [exe & words] (tokenize l)
+        [args word] (if (or (re-find #"\s$" l) (= "" l))
+                      [(vec words) ""]
+                      [(vec (butlast words)) (or (last words) "")])]
+    (merge ctx #:acari{:args args
+                       :word word
+                       :exe exe})))
+
+(defn get-ctx
+  ([] (get-ctx {}))
+  ([overrides]
+   (let [ctx #:acari{:shell (getenv "ACARI_SHELL" "")
+                     :line (getenv "COMP_LINE" "")
+                     :point (parse-long (getenv "COMP_POINT" "0"))}]
+     (-> ctx
+         (merge overrides)
+         add-args-and-word))))
+
+(comment
+
+  (get-ctx {:acari/line "foo bar baz"
+            :acari/point  (count "foo bar baz")})
+
+  )
+
+(defn print-completions
+  ([f] (print-completions {} f))
+  ([override-ctx f]
+   (let [handler (wrap-handler f (log-file))
+         ctx (get-ctx override-ctx)]
+     #?(:default (run! println (emit-completions ctx (handler ctx)))
+        :cljs (-> (handler ctx)
+                  (.then
+                   (fn [completions]
+                     (run! js/console.log (emit-completions ctx completions)))))))))
 
 (def file-sep
   #?(:clj fs/file-separator
@@ -210,7 +221,15 @@
 (defn s->ctx [s]
   (let [comp-line (str/replace s "|" "")
         comp-point (or (str/index-of s \|) (count comp-line))]
-    (args-and-word comp-line comp-point)))
+    (add-args-and-word #:acari{:line comp-line, :point comp-point})))
+
+(comment
+
+  (s->ctx "a-command an-arg other-arg --an opt")
+  (s->ctx "a-command an-arg --an| opt")
+  (s->ctx "a-command an-arg --an |opt")
+
+  )
 
 ;; Bash
 
@@ -229,6 +248,8 @@
 {
     export COMP_LINE=${COMP_LINE}
     export COMP_POINT=$COMP_POINT
+    export ACARI_SHELL=bash
+    export ACARI_SCRIPT_VERSION=0.0.0
 
     RESPONSE=($(" completions-command "))
 
@@ -254,6 +275,3 @@
     (str (bash-fn fn-name completions-command)
          \newline
          "complete -o nospace -F " fn-name " " command-name)))
-
-(defmethod get-ctx* "bash" [_]
-  (args-and-word (getenv "COMP_LINE") (parse-long (getenv "COMP_POINT"))))

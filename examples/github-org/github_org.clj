@@ -33,18 +33,18 @@
      (acari/print-script
       {:shell shell
        ;; The name of the command to be completed
-       :command-name "github_org.cljc"
+       :command-name "github_org.clj"
        ;; The command the shell script will invoke to get completions
-       :completions-command (str "github_org.cljc print-completions " shell)}))
+       :completions-command "github_org.clj print-completions"}))
 
    ;; The shell script will invoke this command to get completions
    "print-completions"
-   (fn [shell]
+   (fn []
      (acari/print-completions
-      {:shell shell}
       ;; This function receives a ctx and returns a seqable of strings
       (fn [{[cmd org _member :as args] :acari/args
             _word :acari/word
+            _shell :acari/shell
             :as ctx}]
         ;; Anything that's printed is appended to COMP_DEBUG_FILE (if set)
         (prn ctx)
