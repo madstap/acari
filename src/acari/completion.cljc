@@ -101,10 +101,10 @@
 
 (defn emit-completions [ctx completions]
   (let [{comps :completions} (normalize-completions completions)
-        on-complete (or (and (= 1 (count comps))
-                             (:on-complete (first comps)))
-                        :next)
-        filtered (filter-prefix (:acari/word ctx) comps)]
+        filtered (filter-prefix (:acari/word ctx) comps)
+        on-complete (or (and (= 1 (count filtered))
+                             (:on-complete (first filtered)))
+                        :next)]
     (cons (name on-complete) (map :value filtered))))
 
 (defn log-file []
