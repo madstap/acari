@@ -14,27 +14,3 @@ Pre-alpha, everything is subject to change.
 ## Usage
 
 ## Rationale
-
-## Links
-
-* https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion-Builtins.html
-* https://github.com/scop/bash-completion
-
-
-* https://zsh.sourceforge.io/FAQ/zshfaq04.html#l49
-* https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#telling-zsh-which-function-to-use-for-completing-a-command
-* https://thevaluable.dev/zsh-completion-guide-examples/
-
-
-* https://fishshell.com/docs/current/completions.html
-* https://medium.com/@fabioantunes/a-guide-for-fish-shell-completions-485ac04ac63c
-* https://stackoverflow.com/questions/55845284/how-to-implement-dynamic-tab-completion-of-options-in-fish-shell
-
-* https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_argument_completion?view=powershell-7.4
-* https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/register-argumentcompleter?view=powershell-7.4
-
-* https://pypi.org/project/argcomplete/0.6.5/
-
-* https://www.nushell.sh/cookbook/external_completers.html#fish-completer
-
-* https://github.com/carapace-sh/carapace-bin
