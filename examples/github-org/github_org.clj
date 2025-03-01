@@ -49,7 +49,7 @@
         ;; Anything that's printed is appended to COMP_DEBUG_FILE (if set)
         (prn ctx)
         (case cmd
-          nil (keys commands)
+          nil (keys (dissoc commands "print-completions" "completions-script"))
           "member-orgs" (if org
                           (fetch-members org)
                           clj-orgs)
